@@ -1,0 +1,277 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:client/logic/home_page_logic.dart';
+import 'package:client/models/song_model.dart';
+
+void main() {
+  group('HomePageLogic Tests', () {
+    test('should convert Song to YouTubeVideoInfo correctly', () {
+      // Arrange
+      final song = Song(
+        id: 1,
+        songName: 'Test Song',
+        artist: 'Test Artist',
+        audioPath: 'https://example.com/audio.mp3',
+        genre: 'Pop',
+        thumbnail: 'https://example.com/thumb.jpg',
+        duration: '3:45',
+        videoId: 'abc123',
+      );
+
+      // Act
+      final videoInfo = HomePageLogic.songToVideoInfo(song);
+
+      // Assert
+      expect(videoInfo.title, equals(song.songName));
+      expect(videoInfo.artist, equals(song.artist));
+      expect(videoInfo.audioUrl, equals(song.audioPath));
+      expect(videoInfo.thumbnailUrl, equals(song.thumbnail));
+      expect(videoInfo.videoId, equals(song.videoId));
+    });
+
+    test('should find song index by ID correctly', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+        Song(id: 2, songName: 'Song 2', artist: 'Artist 2', audioPath: 'path2', genre: 'Rock'),
+        Song(id: 3, songName: 'Song 3', artist: 'Artist 3', audioPath: 'path3', genre: 'Jazz'),
+      ];
+      final targetSong = songs[1]; // Song with id 2
+
+      // Act
+      final index = HomePageLogic.findSongIndex(songs, targetSong);
+
+      // Assert
+      expect(index, equals(1));
+    });
+
+    test('should find song by name and artist when ID not found', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+        Song(id: 2, songName: 'Song 2', artist: 'Artist 2', audioPath: 'path2', genre: 'Rock'),
+      ];
+      final targetSong = Song(id: 999, songName: 'Song 2', artist: 'Artist 2', audioPath: 'path2', genre: 'Rock');
+
+      // Act
+      final index = HomePageLogic.findSongIndex(songs, targetSong);
+
+      // Assert
+      expect(index, equals(1));
+    });
+
+    test('should return -1 when song not found', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+      ];
+      final targetSong = Song(id: 999, songName: 'Not Found', artist: 'Unknown', audioPath: 'path', genre: 'Rock');
+
+      // Act
+      final index = HomePageLogic.findSongIndex(songs, targetSong);
+
+      // Assert
+      expect(index, equals(-1));
+    });
+
+    test('should get next song index correctly', () {
+      // Act
+      final nextIndex = HomePageLogic.getNextSongIndex(1, 5);
+
+      // Assert
+      expect(nextIndex, equals(2));
+    });
+
+    test('should wrap to beginning at end of playlist', () {
+      // Act
+      final nextIndex = HomePageLogic.getNextSongIndex(4, 5);
+
+      // Assert
+      expect(nextIndex, equals(0));
+    });
+
+    test('should get previous song index correctly', () {
+      // Act
+      final previousIndex = HomePageLogic.getPreviousSongIndex(2, 5);
+
+      // Assert
+      expect(previousIndex, equals(1));
+    });
+
+    test('should wrap to end when at beginning of playlist', () {
+      // Act
+      final previousIndex = HomePageLogic.getPreviousSongIndex(0, 5);
+
+      // Assert
+      expect(previousIndex, equals(4));
+    });
+
+    test('should handle empty playlist for navigation', () {
+      // Act
+      final nextIndex = HomePageLogic.getNextSongIndex(0, 0);
+      final previousIndex = HomePageLogic.getPreviousSongIndex(0, 0);
+
+      // Assert
+      expect(nextIndex, equals(-1));
+      expect(previousIndex, equals(-1));
+    });
+
+    test('should validate playback operation with valid data', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+        Song(id: 2, songName: 'Song 2', artist: 'Artist 2', audioPath: 'path2', genre: 'Rock'),
+      ];
+
+      // Act
+      final canPerform = HomePageLogic.canPerformPlaybackOperation(songs, 0);
+
+      // Assert
+      expect(canPerform, isTrue);
+    });
+
+    test('should invalidate playback operation with empty songs', () {
+      // Arrange
+      final songs = <Song>[];
+
+      // Act
+      final canPerform = HomePageLogic.canPerformPlaybackOperation(songs, 0);
+
+      // Assert
+      expect(canPerform, isFalse);
+    });
+
+    test('should invalidate playback operation with invalid index', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+      ];
+
+      // Act
+      final canPerform = HomePageLogic.canPerformPlaybackOperation(songs, -1);
+
+      // Assert
+      expect(canPerform, isFalse);
+    });
+
+    test('should invalidate playback operation with out of bounds index', () {
+      // Arrange
+      final songs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+      ];
+
+      // Act
+      final canPerform = HomePageLogic.canPerformPlaybackOperation(songs, 5);
+
+      // Assert
+      expect(canPerform, isFalse);
+    });
+
+    test('should identify recoverable errors correctly', () {
+      // Arrange
+      final recoverableErrors = [
+        Exception('HTTP 403 Forbidden'),
+        Exception('Source error occurred'),
+        Exception('Network error'),
+        Exception('URL expired'),
+      ];
+
+      // Act & Assert
+      for (final error in recoverableErrors) {
+        expect(HomePageLogic.shouldShowErrorToUser(error), isFalse, 
+               reason: 'Should not show ${error.toString()} to user');
+      }
+    });
+
+    test('should identify non-recoverable errors correctly', () {
+      // Arrange
+      final nonRecoverableErrors = [
+        Exception('File not found'),
+        Exception('Invalid format'),
+        Exception('Authentication failed'),
+      ];
+
+      // Act & Assert
+      for (final error in nonRecoverableErrors) {
+        expect(HomePageLogic.shouldShowErrorToUser(error), isTrue,
+               reason: 'Should show ${error.toString()} to user');
+      }
+    });
+
+    test('should create shuffled playlist correctly', () {
+      // Arrange
+      final originalSongs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+        Song(id: 2, songName: 'Song 2', artist: 'Artist 2', audioPath: 'path2', genre: 'Rock'),
+        Song(id: 3, songName: 'Song 3', artist: 'Artist 3', audioPath: 'path3', genre: 'Jazz'),
+      ];
+      final currentSong = originalSongs[1];
+
+      // Act
+      final shuffledPlaylist = HomePageLogic.createShuffledPlaylist(originalSongs, currentSong);
+
+      // Assert
+      expect(shuffledPlaylist.length, equals(originalSongs.length));
+      expect(shuffledPlaylist.first.id, equals(currentSong.id));
+      
+      // Check all songs are present
+      for (final song in originalSongs) {
+        expect(shuffledPlaylist.any((s) => s.id == song.id), isTrue);
+      }
+    });
+
+    test('should validate current state correctly', () {
+      // Arrange
+      final currentVideo = YouTubeVideoInfo(
+        title: 'Test Song',
+        artist: 'Test Artist',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        duration: Duration(minutes: 3, seconds: 45),
+        audioUrl: 'https://example.com/audio.mp3',
+        videoId: 'abc123',
+      );
+      final allSongs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+      ];
+      const currentIndex = 0;
+
+      // Act
+      final isValid = HomePageLogic.validateCurrentState(currentVideo, allSongs, currentIndex);
+
+      // Assert
+      expect(isValid, isTrue);
+    });
+
+    test('should invalidate current state with null video', () {
+      // Arrange
+      const YouTubeVideoInfo? currentVideo = null;
+      final allSongs = [
+        Song(id: 1, songName: 'Song 1', artist: 'Artist 1', audioPath: 'path1', genre: 'Pop'),
+      ];
+      const currentIndex = 0;
+
+      // Act
+      final isValid = HomePageLogic.validateCurrentState(currentVideo, allSongs, currentIndex);
+
+      // Assert
+      expect(isValid, isFalse);
+    });
+
+    test('should provide user-friendly error messages', () {
+      // Test different error types
+      expect(
+        HomePageLogic.getUserFriendlyErrorMessage('No songs available'),
+        contains('No songs available'),
+      );
+      
+      expect(
+        HomePageLogic.getUserFriendlyErrorMessage('Network error occurred'),
+        contains('Network error'),
+      );
+      
+      expect(
+        HomePageLogic.getUserFriendlyErrorMessage('Video not found'),
+        contains('no longer available'),
+      );
+    });
+  });
+}
