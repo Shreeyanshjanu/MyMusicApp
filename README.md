@@ -83,8 +83,8 @@ Feel free to open issues for feature requests, bug reports, or questions.
 ## 📧 Contact
 
 - **Author:** Shreeyansh Janu
-- **LinkedIn:** [Your LinkedIn URL]
-- **Email:** your.email@example.com
+- **LinkedIn:** https://www.linkedin.com/in/shreeyanshjanu/
+- **Email:** arthurmorgan5984@gmail.com
 
 ---
 
